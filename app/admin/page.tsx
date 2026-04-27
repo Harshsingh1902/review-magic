@@ -12,6 +12,20 @@ function slugify(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState('')
@@ -95,20 +109,124 @@ export default function AdminPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  function handleDownloadQR() {
+  async function handleDownloadQR() {
     if (!qrClient) return
     setDownloading(true)
     try {
-      const svg = document.querySelector('#qr-modal svg') as SVGElement
-      if (!svg) return
-      const svgData = new XMLSerializer().serializeToString(svg)
-      const blob = new Blob([svgData], { type: 'image/svg+xml' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${qrClient.slug}-qr.svg`
-      a.click()
-      URL.revokeObjectURL(url)
+      const reviewUrl = `${window.location.origin}/review/${qrClient.slug}`
+      const size = 1200
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')!
+
+      // Outer background
+      ctx.fillStyle = '#F7F4EF'
+      ctx.fillRect(0, 0, size, size)
+
+      // White card with shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.10)'
+      ctx.shadowBlur = 60
+      ctx.shadowOffsetY = 8
+      roundRect(ctx, 60, 60, size - 120, size - 120, 56)
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fill()
+      ctx.shadowBlur = 0
+      ctx.shadowOffsetY = 0
+
+      // Gold top accent bar
+      roundRect(ctx, 60, 60, size - 120, 12, 6)
+      ctx.fillStyle = '#C4A962'
+      ctx.fill()
+
+      // "QR CODE" label
+      ctx.fillStyle = '#C4A962'
+      ctx.font = '600 26px Arial, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.letterSpacing = '6px'
+      ctx.fillText('QR CODE', size / 2, 175)
+
+      // Business name
+      ctx.fillStyle = '#1a1a1a'
+      ctx.font = '300 62px Georgia, "Times New Roman", serif'
+      ctx.letterSpacing = '0px'
+      ctx.fillText(qrClient.name, size / 2, 268)
+
+      // Thin gold divider
+      ctx.strokeStyle = '#C4A962'
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(size / 2 - 100, 298)
+      ctx.lineTo(size / 2 + 100, 298)
+      ctx.stroke()
+
+      // QR code background pill
+      roundRect(ctx, (size - 600) / 2, 330, 600, 600, 28)
+      ctx.fillStyle = '#FDFAF4'
+      ctx.fill()
+
+      // Generate QR via qrcode lib
+      const QRCode = (await import('qrcode'))
+      const qrDataUrl = await QRCode.toDataURL(reviewUrl, {
+        width: 560,
+        margin: 1,
+        color: { dark: '#1a1a1a', light: '#FDFAF4' },
+        errorCorrectionLevel: 'H',
+      })
+
+      await new Promise<void>((resolve) => {
+        const qrImg = new Image()
+        qrImg.onload = () => {
+          ctx.drawImage(qrImg, (size - 560) / 2, 350, 560, 560)
+
+          // Star overlay in center of QR
+          ctx.font = '52px serif'
+          ctx.textAlign = 'center'
+          ctx.fillStyle = '#FDFAF4'
+          ctx.beginPath()
+          ctx.arc(size / 2, 630, 34, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.fillStyle = '#C4A962'
+          ctx.fillText('★', size / 2, 648)
+
+          resolve()
+        }
+        qrImg.src = qrDataUrl
+      })
+
+      // Scan label
+      ctx.fillStyle = '#AAAAAA'
+      ctx.font = '300 24px Arial, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('Scan to leave a review', size / 2, 998)
+
+      // Slug URL
+      ctx.fillStyle = '#444444'
+      ctx.font = '500 26px "Courier New", monospace'
+      ctx.fillText(`/review/${qrClient.slug}`, size / 2, 1040)
+
+      // Divider
+      ctx.strokeStyle = '#E8E0D0'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(size / 2 - 80, 1070)
+      ctx.lineTo(size / 2 + 80, 1070)
+      ctx.stroke()
+
+      // ReviewMagic branding
+      ctx.fillStyle = '#C4A962'
+      ctx.font = '400 28px Georgia, serif'
+      ctx.fillText('ReviewMagic', size / 2, 1112)
+
+      // Download as PNG
+      canvas.toBlob((blob) => {
+        if (!blob) return
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `${qrClient.slug}-qr.png`
+        a.click()
+      }, 'image/png')
+
     } finally {
       setDownloading(false)
     }
@@ -297,16 +415,27 @@ export default function AdminPage() {
             className="bg-white rounded-2xl p-8 shadow-xl max-w-sm w-full text-center"
             onClick={e => e.stopPropagation()}
           >
+            <p className="text-xs tracking-widest text-gold-500 uppercase font-medium mb-2">QR Code</p>
             <p className="font-serif text-xl font-light text-ink-900 mb-1">{qrClient.name}</p>
             <p className="text-xs text-ink-400 mb-6">Scan to leave a review</p>
-            <div className="flex justify-center mb-6">
-              <QRCodeSVG
-                value={`${window.location.origin}/review/${qrClient.slug}`}
-                size={200}
-                bgColor="#ffffff"
-                fgColor="#1a1a1a"
-              />
+            <div className="flex justify-center mb-3">
+              <div className="bg-cream-50 rounded-2xl p-4">
+                <QRCodeSVG
+                  value={`${window.location.origin}/review/${qrClient.slug}`}
+                  size={192}
+                  bgColor="#FDFAF4"
+                  fgColor="#1a1a1a"
+                  level="H"
+                  imageSettings={{
+                    src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='18' font-size='18'%3E%E2%98%85%3C/text%3E%3C/svg%3E",
+                    height: 28,
+                    width: 28,
+                    excavate: true,
+                  }}
+                />
+              </div>
             </div>
+            <p className="text-xs text-ink-400 font-mono mb-6">/review/{qrClient.slug}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setQrClient(null)}
@@ -319,7 +448,7 @@ export default function AdminPage() {
                 disabled={downloading}
                 className="flex-1 py-3 bg-ink-900 text-cream-50 text-sm font-medium rounded-xl hover:bg-ink-800 transition-colors disabled:opacity-50"
               >
-                {downloading ? 'Downloading…' : 'Download'}
+                {downloading ? 'Generating…' : 'Download PNG'}
               </button>
             </div>
           </div>
