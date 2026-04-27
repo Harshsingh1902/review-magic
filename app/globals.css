@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --font-cormorant: 'Cormorant Garamond', Georgia, serif;
+  --font-dm-mono: 'DM Mono', monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-dm-sans);
+  background: #FDFCF9;
+  color: #0A0A08;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #B0B0A6; border-radius: 4px; }
+
+/* Selection */
+::selection { background: #C9A84C22; color: #0A0A08; }
+
+/* Focus rings */
+*:focus-visible {
+  outline: 2px solid #C9A84C;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-ink-900 text-cream-50 text-sm font-medium tracking-wide rounded-full transition-all duration-200 hover:bg-ink-800 active:scale-95;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 text-ink-700 text-sm font-medium tracking-wide rounded-full border border-ink-300 transition-all duration-200 hover:border-ink-500 hover:bg-ink-900/5 active:scale-95;
+  }
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-gold-400 text-ink-900 text-sm font-semibold tracking-wide rounded-full transition-all duration-200 hover:bg-gold-500 active:scale-95;
+  }
+  .section-label {
+    @apply text-xs font-medium tracking-widest uppercase text-ink-400;
+  }
+  .display-serif {
+    @apply font-serif font-light tracking-tight;
+  }
+  .card-glass {
+    @apply bg-white/80 backdrop-blur-sm border border-ink-900/8 rounded-2xl;
+  }
+}
